@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIVENAL MÉTÉO</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:linear-gradient(145deg,#07182e,#123c65,#176b91);color:white;min-height:100vh;padding:25px}
+.container{max-width:1000px;margin:auto}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:35px}
+.logo{font-size:25px;font-weight:900;letter-spacing:2px}
+.logo span{color:#54d9ff}
+.tag{font-size:12px;color:#a8dfff}
+.search{display:flex;gap:10px;margin-bottom:25px}
+input{flex:1;min-width:0;padding:16px;border-radius:12px;border:1px solid #426583;background:#ffffff15;color:white;font-size:16px;outline:none}
+input::placeholder{color:#c1d5e5}
+button{border:0;border-radius:12px;padding:15px 22px;background:#36c5ed;color:#06223d;font-weight:bold;cursor:pointer}
+button:hover{background:#80e4ff}
+.card{background:#ffffff12;border:1px solid #ffffff20;border-radius:22px;padding:25px;backdrop-filter:blur(12px)}
+.main{display:grid;grid-template-columns:1.3fr 1fr;gap:20px}
+.city{font-size:22px;font-weight:bold}
+.date{color:#b9d8ee;margin-top:8px}
+.temp{font-size:76px;font-weight:800;margin:15px 0}
+.desc{font-size:19px;color:#b9e9ff}
+.icon{font-size:65px}
+.hero{display:flex;align-items:center;justify-content:space-between}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.stat{background:#ffffff12;padding:18px;border-radius:15px}
+.stat small{color:#b9d8ee}
+.stat strong{display:block;font-size:21px;margin-top:10px}
+h2{font-size:19px;margin:30px 0 15px}
+.forecast{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.day{text-align:center;padding:17px 8px}
+.day span{display:block;margin:12px 0;font-size:25px}
+.day strong{font-size:17px}
+.day small{color:#b9d8ee}
+footer{text-align:center;color:#a8c9df;margin-top:30px;font-size:12px}
+#message{margin:15px 0;color:#b9e9ff}
+@media(max-width:650px){
+body{padding:15px}
+.main{grid-template-columns:1fr}
+.forecast{grid-template-columns:repeat(2,1fr)}
+.temp{font-size:65px}
+.logo{font-size:20px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<div class="logo">RIVENAL <span>MÉTÉO</span></div>
+<div class="tag">🌍 WEATHER WORLD</div>
+</header>
+
+<div class="search">
+<input id="cityInput" placeholder="Rechercher une ville..." value="Kinshasa">
+<button onclick="searchCity()">Rechercher</button>
+</div>
+<p id="message">Chargement de la météo...</p>
+
+<div class="main">
+<section class="card">
+<div class="city" id="city">Kinshasa, RDC</div>
+<div class="date" id="date"></div>
+<div class="hero">
+<div>
+<div class="temp" id="temp">--°</div>
+<div class="desc" id="description">Chargement...</div>
+</div>
+<div class="icon" id="weatherIcon">🌤️</div>
+</div>
+</section>
+
+<section class="card">
+<h2 style="margin-top:0">Conditions actuelles</h2>
+<div class="stats">
+<div class="stat">💧<small> Humidité</small><strong id="humidity">--%</strong></div>
+<div class="stat">💨<small> Vent</small><strong id="wind">-- km/h</strong></div>
+<div class="stat">🌡️<small> Ressenti</small><strong id="feels">--°</strong></div>
+<div class="stat">☁️<small> Couverture nuageuse</small><strong id="cloud">--%</strong></div>
+</div>
+</section>
+</div>
+
+<h2>📅 Prévisions sur 7 jours</h2>
+<div class="forecast" id="forecast"></div>
+
+<footer>© 2026 RIVENAL MÉTÉO · Tous droits réservés</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function weatherInfo(code){
+if(code===0)return ["Ensoleillé","☀️"];
+if(code<=2)return ["Partiellement nuageux","🌤️"];
+if(code===3)return ["Nuageux","☁️"];
+if(code<=48)return ["Brouillard","🌫️"];
+if(code<=57)return ["Bruine","🌦️"];
+if(code<=67)return ["Pluie","🌧️"];
+if(code<=77)return ["Neige","❄️"];
+if(code<=82)return ["Averses","🌧️"];
+if(code<=86)return ["Averses de neige","🌨️"];
+return ["Orage","⛈️"];
+}
+
+async function searchCity(){
+const name=$("cityInput").value.trim();
+if(!name)return;
+$("message").textContent="Recherche de la ville...";
+try{
+const geo=await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(name)+"&count=1&language=fr&format=json");
+const places=await geo.json();
+if(!places.results?.length)throw Error("Ville introuvable.");
+const p=places.results[0];
+$("city").textContent=p.name+(p.country?", "+p.country:"");
+await loadWeather(p.latitude,p.longitude);
+}catch(e){
+$("message").textContent=e.message||"Impossible de charger les données.";
+}
+}
+
+async function loadWeather(lat,lon){
+$("message").textContent="Récupération des prévisions...";
+const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7`;
+const response=await fetch(url);
+if(!response.ok)throw Error("Erreur de connexion météo.");
+const data=await response.json();
+const c=data.current;
+const info=weatherInfo(c.weather_code);
+$("temp").textContent=Math.round(c.temperature_2m)+"°C";
+$("description").textContent=info[0];
+$("weatherIcon").textContent=info[1];
+$("humidity").textContent=c.relative_humidity_2m+"%";
+$("wind").textContent=c.wind_speed_10m+" km/h";
+$("feels").textContent=Math.round(c.apparent_temperature)+"°C";
+$("cloud").textContent=c.cloud_cover+"%";
+$("date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+$("message").textContent="✓ Données météo actualisées";
+$("forecast").innerHTML="";
+data.daily.time.forEach((day,i)=>{
+const info=weatherInfo(data.daily.weather_code[i]);
+const date=new Date(day+"T12:00:00");
+const label=i===0?"Aujourd'hui":date.toLocaleDateString("fr-FR",{weekday:"short"});
+const el=document.createElement("div");
+el.className="card day";
+const title=document.createElement("small");
+title.textContent=label;
+const icon=document.createElement("span");
+icon.textContent=info[1];
+const temp=document.createElement("strong");
+temp.textContent=Math.round(data.daily.temperature_2m_max[i])+"°";
+const low=document.createElement("small");
+low.textContent=Math.round(data.daily.temperature_2m_min[i])+"° min";
+el.append(title,icon,temp,low);
+$("forecast").appendChild(el);
+});
+}
+
+$("cityInput").addEventListener("keydown",e=>{
+if(e.key==="Enter")searchCity();
+});
+
+$("date").textContent=new Date().toLocaleDateString("fr-FR");
+loadWeather(-4.3276,15.3136).catch(e=>$("message").textContent=e.message);
+</script>
+</body>
+</html>
